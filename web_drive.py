@@ -3,7 +3,8 @@ import base64
 import json
 import time
 from io import BytesIO
-from multiprocessing import Process, Queue
+from multiprocessing import set_start_method
+from torch.multiprocessing import Pool, Queue, Process
 
 import cv2
 import numpy as np
@@ -16,13 +17,12 @@ from simple_pid import PID
 import utils
 import config
 import utils.trafficsign_detector
+import torch
 
-traffic_sign_model = cv2.dnn.readNetFromONNX(config.TRAFFICSIGN_MODEL)
 
 # Global queue to save current image
 # We need to run the sign classification model in a separate process
 # Use this queue as an intermediate place to exchange images
-g_image_queue = Queue(maxsize=5)
 
 # Car controller 
 car_controller = utils.controller.carController()
@@ -31,7 +31,12 @@ car_controller.throttle = config.THROTTLE
 
 # Function to run sign classification model continuously
 # We will start a new process for this
-def process_traffic_sign_loop(g_image_queue):
+def process_traffic_sign_loop(g_image_queue, model):
+    # Move model to GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    model.eval()
+
     while True:
         if g_image_queue.empty():
             time.sleep(0.1)
@@ -41,7 +46,7 @@ def process_traffic_sign_loop(g_image_queue):
         # Prepare visualization image
         draw = image.copy()
         # Detect traffic signs
-        utils.trafficsign_detector.detect_traffic_signs(image, traffic_sign_model, draw=draw)
+        utils.trafficsign_detector.detect_traffic_signs(image, model, draw=draw, device=device)
         # Show the result to a window
         cv2.imshow("Traffic signs", draw)
         cv2.waitKey(1)
@@ -58,8 +63,8 @@ async def process_image(websocket, path):
         cur_throttle = data['throttle']
         cur_steer_angle = data['steering_angle']
         
-        print(f"Current throttle: {cur_throttle}")
-        print(f"Current steering angle: {cur_steer_angle}")
+        # print(f"Current throttle: {cur_throttle}")
+        # print(f"Current steering angle: {cur_steer_angle}")
 
         # Prepare visualization image
         draw = image.copy()
@@ -79,7 +84,7 @@ async def process_image(websocket, path):
         # Send back throttle and steering angle
         message = json.dumps(
             {"throttle": throttle, "steering": steering_angle})
-        print(message)
+        # print(message)
 
         await websocket.send(message)
 
@@ -89,6 +94,9 @@ async def main():
         await asyncio.Future()  # run forever
 
 if __name__ == '__main__':
-    p = Process(target=process_traffic_sign_loop, args=(g_image_queue,))
+    set_start_method('spawn', force=True)
+    g_image_queue = Queue(maxsize=5)
+    traffic_sign_model = torch.load("/home/ngin/autonomous_car/models/traffic_sign_classifier.pth", weights_only=False)
+    p = Process(target=process_traffic_sign_loop, args=(g_image_queue, traffic_sign_model,))
     p.start()
     asyncio.run(main())

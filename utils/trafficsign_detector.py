@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import torch
 
 def filter_signs_by_color(image):
     """Lọc biển báo theo màu sắc
@@ -53,7 +53,8 @@ def get_boxes_from_mask(mask):
     return bboxes
 
 
-def detect_traffic_signs(img, model, draw=None):
+
+def detect_traffic_signs(img, model, draw=None, device='cpu'):
     """Phát hiện biển báo
     """
 
@@ -83,13 +84,14 @@ def detect_traffic_signs(img, model, draw=None):
         # Tiền xử lý
         sub_image = cv2.resize(sub_image, (32, 32))
         sub_image = np.expand_dims(sub_image, axis=0)
+        input = torch.from_numpy(sub_image)
+        input = input.to(device)
 
         # Sử dụng CNN để phân loại biển báo
-        model.setInput(sub_image)
-        preds = model.forward()
+        preds = model(input)
         preds = preds[0]
         cls = preds.argmax()
-        score = preds[cls]
+        score = preds[cls].item()
 
         # Loại bỏ các vật không phải biển báo - thuộc lớp unknown
         if cls == 0:
@@ -115,8 +117,11 @@ if __name__=="__main__":
     image = "/home/ngin/autonomous_car/data/traffic_sign_images/1.jpg"
     image = cv2.imread(image)
 
-    filtered_image = filter_signs_by_color(image)
+    model = torch.load("/home/ngin/autonomous_car/models/traffic_sign_classifier.pth", weights_only=False)
+
+    draw = image.copy()
+    detect_traffic_signs(image, model, draw)
 
     cv2.imshow("Image", image)
-    cv2.imshow("Filtered Image", filtered_image)
+    cv2.imshow("Filtered Image", draw)
     cv2.waitKey(0)
