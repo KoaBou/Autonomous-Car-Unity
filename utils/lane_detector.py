@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from configs import config
 
 
 def find_lane_lines(img):
@@ -69,11 +70,11 @@ def find_left_right_points(image, draw=None):
 
     # Predict right point when only see the left point
     if left_point != -1 and right_point == -1:
-        right_point = left_point + lane_width
+        right_point = left_point + config.LANE_WIDTH
 
     # Predict left point when only see the right point
     if right_point != -1 and left_point == -1:
-        left_point = right_point - lane_width
+        left_point = right_point - config.LANE_WIDTH
 
     # Draw two points on the image
     if draw is not None:
