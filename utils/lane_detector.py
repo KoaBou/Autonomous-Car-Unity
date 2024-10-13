@@ -56,6 +56,8 @@ def find_left_right_points(image, draw=None):
     right_point = -1
     lane_width = 100
     center = im_width // 2
+    have_left = False
+    have_right = False
 
     # Traverse the two sides, find the first non-zero value pixels, and
     # consider them as the position of the left and right lines
@@ -71,11 +73,18 @@ def find_left_right_points(image, draw=None):
     # Predict right point when only see the left point
     if left_point != -1 and right_point == -1:
         right_point = left_point + config.LANE_WIDTH
-
+        have_left = True    
     # Predict left point when only see the right point
     if right_point != -1 and left_point == -1:
         left_point = right_point - config.LANE_WIDTH
-
+        have_right = True
+    if right_point == -1 and left_point == -1:
+        right_point = center + config.LANE_WIDTH//2
+        left_point = center - config.LANE_WIDTH//2
+    if right_point != -1 and left_point != -1:
+        have_right = True
+        have_left = True
+ 
     # Draw two points on the image
     if draw is not None:
         if left_point != -1:
@@ -85,6 +94,6 @@ def find_left_right_points(image, draw=None):
             draw = cv2.circle(
                 draw, (right_point, interested_line_y), 7, (0, 255, 0), -1)
 
-    return left_point, right_point
+    return left_point, right_point, have_left, have_right
 
 

@@ -110,8 +110,7 @@ def detect_traffic_signs(img, model, draw=None, device='cpu'):
             cv2.putText(draw, text, (x, y-5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    return signs
-
+    return [sign[0] for sign in signs]
 
 if __name__=="__main__":
     image = "/home/ngin/autonomous_car/data/traffic_sign_images/1.jpg"
