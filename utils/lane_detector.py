@@ -11,19 +11,23 @@ def find_lane_lines(img):
     """
 
     # Convert to gray scale
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img
     # Apply a Gaussian filter to remove noise
     # You can experiment with other filters here.
-    img_gauss = cv2.GaussianBlur(gray, (11, 11), 0)
+    # img_gauss = cv2.GaussianBlur(gray, (11, 11), 0)
 
-    # Apply Canny edge detection
-    thresh_low = 150
-    thresh_high = 200
-    img_canny = cv2.Canny(img_gauss, thresh_low, thresh_high)
+    # # Apply Canny edge detection
+    # thresh_low = 150
+    # thresh_high = 200
+    # img_canny = cv2.Canny(img_gauss, thresh_low, thresh_high)
+
+    ret, lanes = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
 
     # Return image
-    return img_canny
+    return lanes
 
 
 def birdview_transform(img):
@@ -42,58 +46,85 @@ def find_left_right_points(image, draw=None):
     """Find left and right points of lane
     """
 
-    im_height, im_width = image.shape[:2]
+    points = {
+        "left": -1,
+        "right": -1,
+        "center": config.IMAGE_WIDTH // 2,
+        "have_left": False,
+        "have_right": False,
+        "lane_line": 0
+    }
+
+    res = [points.copy() for _ in range(2)]
+
+    center = config.IMAGE_WIDTH // 2
 
     # Consider the position 70% from the top of the image
-    interested_line_y = int(im_height * 0.9)
+    interested_lines_y = [int(config.LINEOFINTEREST_Y1*config.IMAGE_HEIGHT), int(config.LINEOFINTEREST_Y2*config.IMAGE_HEIGHT)]
+    
     if draw is not None:
-        cv2.line(draw, (0, interested_line_y),
-                 (im_width, interested_line_y), (0, 0, 255), 2)
-    interested_line = image[interested_line_y, :]
+        for interested_line_y in interested_lines_y:
+            cv2.line(draw, (0, interested_line_y),
+                    (config.IMAGE_WIDTH, interested_line_y), (0, 0, 255), 2)
+            
+    interested_lines = []
+    
+    for i, interested_line_y in enumerate(interested_lines_y):
+        interested_line = image[interested_line_y, :]
 
-    # Detect left/right points
-    left_point = -1
-    right_point = -1
-    lane_width = 100
-    center = im_width // 2
-    have_left = False
-    have_right = False
+        # Traverse the two sides, find the first non-zero value pixels, and
+        # consider them as the position of the left and right lines
+        for x in range(center, 0, -1):
+            if interested_line[x] > 0:
+                res[i]['left'] = x
+                break
 
-    # Traverse the two sides, find the first non-zero value pixels, and
-    # consider them as the position of the left and right lines
-    for x in range(center, 0, -1):
-        if interested_line[x] > 0:
-            left_point = x
-            break
-    for x in range(center + 1, im_width):
-        if interested_line[x] > 0:
-            right_point = x
-            break
+        for x in range(center + 1, config.IMAGE_WIDTH):
+            if interested_line[x] > 0:
+                res[i]['right'] = x
+                break
 
-    # Predict right point when only see the left point
-    if left_point != -1 and right_point == -1:
-        right_point = left_point + config.LANE_WIDTH
-        have_left = True    
-    # Predict left point when only see the right point
-    if right_point != -1 and left_point == -1:
-        left_point = right_point - config.LANE_WIDTH
-        have_right = True
-    if right_point == -1 and left_point == -1:
-        right_point = center + config.LANE_WIDTH//2
-        left_point = center - config.LANE_WIDTH//2
-    if right_point != -1 and left_point != -1:
-        have_right = True
-        have_left = True
- 
-    # Draw two points on the image
-    if draw is not None:
-        if left_point != -1:
+        # Predict right point when only see the left point
+        if res[i]['left'] != -1 and res[i]['right'] == -1:
+            res[i]['right'] = center + config.LANE_WIDTH
+            res[i]['have_left'] = True    
+        # Predict left point when only see the right point
+        if res[i]['right'] != -1 and res[i]['left'] == -1:
+            res[i]['left'] = center - config.LANE_WIDTH
+            res[i]['have_right'] = True
+        if res[i]['right'] == -1 and res[i]['left'] == -1:
+            res[i]['right'] = center + config.LANE_WIDTH//2
+            res[i]['left'] = center - config.LANE_WIDTH//2
+        if res[i]['right'] != -1 and res[i]['left'] != -1:
+            res[i]['have_right'] = True
+            res[i]['have_left'] = True
+
+        res[i]['lane_line'] = res[i]['have_left'] + res[i]['have_right']
+        res[i]['center'] = (res[i]['left'] + res[i]['right']) // 2
+
+        # Draw two points on the image
+        if draw is not None:
+            if res[i]['left'] != -1:
+                draw = cv2.circle(
+                    draw, (res[i]['left'], interested_line_y), 7, (255, 255, 0), -1)
+            if res[i]['right'] != -1:
+                draw = cv2.circle(
+                    draw, (res[i]['right'], interested_line_y), 7, (0, 255, 0), -1)
             draw = cv2.circle(
-                draw, (left_point, interested_line_y), 7, (255, 255, 0), -1)
-        if right_point != -1:
-            draw = cv2.circle(
-                draw, (right_point, interested_line_y), 7, (0, 255, 0), -1)
+                draw, (res[i]['center'], interested_line_y), 7, (0, 0, 255), -1)
 
-    return left_point, right_point, have_left, have_right
+    return res
 
 
+if __name__ == '__main__':
+    img = cv2.imread("/home/ngin/autonomous_car/data/lane_line_images/2.png")
+    img_lines = find_lane_lines(img)
+    img_birdview = birdview_transform(img_lines)
+    draw = np.copy(img)
+    draw = birdview_transform(draw)
+    points = find_left_right_points(img_birdview, draw=draw)
+    cv2.imshow("Lines", img_lines)
+    cv2.imshow("Birdview", img_birdview)
+    cv2.imshow("Draw", draw)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

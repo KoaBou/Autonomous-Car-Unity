@@ -126,7 +126,6 @@ async def process_image(websocket, path, signs):
         # Send back throttle and steering angle
         message = json.dumps(
             {"throttle": throttle, "steering": steering_angle})
-        # print(message)
 
         await websocket.send(message)
 
@@ -143,10 +142,10 @@ if __name__ == '__main__':
     signs = manager.list()
 
     # Load traffic sign model
-    traffic_sign_model = torch.load("/home/ngin/autonomous_car/models/traffic_sign_classifier.pth", weights_only=False)
-    traffic_sign_model.to(device)
-    traffic_sign_model.eval()
+    # traffic_sign_model = torch.load("/home/ngin/autonomous_car/models/traffic_sign_classifier.pth", weights_only=False)
+    # traffic_sign_model.to(device)
+    # traffic_sign_model.eval()
     
-    p = Process(target=process_traffic_sign_loop, args=(g_image_queue, traffic_sign_model, signs))
-    p.start()
+    # p = Process(target=process_traffic_sign_loop, args=(g_image_queue, traffic_sign_model, signs))
+    # p.start()
     asyncio.run(main())
