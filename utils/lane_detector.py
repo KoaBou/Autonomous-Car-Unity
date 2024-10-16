@@ -89,13 +89,13 @@ def find_left_right_points(image, draw=None):
             res[i]['right'] = center + config.LANE_WIDTH
             res[i]['have_left'] = True    
         # Predict left point when only see the right point
-        if res[i]['right'] != -1 and res[i]['left'] == -1:
+        elif res[i]['right'] != -1 and res[i]['left'] == -1:
             res[i]['left'] = center - config.LANE_WIDTH
             res[i]['have_right'] = True
-        if res[i]['right'] == -1 and res[i]['left'] == -1:
+        elif res[i]['right'] == -1 and res[i]['left'] == -1:
             res[i]['right'] = center + config.LANE_WIDTH//2
             res[i]['left'] = center - config.LANE_WIDTH//2
-        if res[i]['right'] != -1 and res[i]['left'] != -1:
+        elif res[i]['right'] != -1 and res[i]['left'] != -1:
             res[i]['have_right'] = True
             res[i]['have_left'] = True
 

@@ -17,7 +17,7 @@ from PIL import Image
 from simple_pid import PID
 
 import utils
-import configs.config as config
+from configs import config
 from utils import trafficsign_detector
 import torch
 
@@ -58,25 +58,27 @@ def process_traffic_sign_loop(g_image_queue, model, signs):
         # Detect traffic signs
         detected_signs = trafficsign_detector.detect_traffic_signs(image, model, draw=draw, device=device)
 
-        tmp_signs = []
+        signs[:] = detected_signs 
 
-        for sign in lastSigns.keys():
-            # Count the number presence of the signs 
-            if (sign in detected_signs):
-                lastSigns[sign][0] = lastSigns[sign][0] + 1
-                lastSigns[sign][1] = time.time()
-            # Remove the signs which disappear more than 0.01 sec 
-            elif time.time() - lastSigns[sign][1] > 0.001:
-                lastSigns[sign][0] = 0
+        # tmp_signs = []
 
-            # If the sign appear more than 5 time, add it to signs
-            if lastSigns[sign][0] > 5:
-                tmp_signs.append(sign)
+        # for sign in lastSigns.keys():
+        #     # Count the number presence of the signs 
+        #     if (sign in detected_signs):
+        #         lastSigns[sign][0] = lastSigns[sign][0] + 1
+        #         lastSigns[sign][1] = time.time()
+        #     # Remove the signs which disappear more than 0.01 sec 
+        #     elif time.time() - lastSigns[sign][1] > 0.1:
+        #         lastSigns[sign][0] = 0
 
-        if len(tmp_signs)>0:
-            signs[:] = tmp_signs
-        else:
-            signs[:] = []
+        #     # If the sign appear more than 5 time, add it to signs
+        #     if lastSigns[sign][0] > 5:
+        #         tmp_signs.append(sign)
+
+        # if len(tmp_signs)>0:
+        #     signs[:] = tmp_signs
+        # else:
+        #     signs[:] = []
 
         # print("Detected signs:", signs)
         
@@ -107,21 +109,15 @@ async def process_image(websocket, path, signs):
         # print(f"Current throttle: {cur_throttle}")
         # print(f"Current steering angle: {cur_steer_angle}")
 
-        # Prepare visualization image
-        draw = image.copy()
-
         # Send back throttle and steering angle
-        car_controller.decision_control(image, signs=signs[:], draw=draw)
+        car_controller.decision_control(image, signs=signs[:])
+
         throttle, steering_angle = car_controller.throttle, car_controller.steering_angle
+        # throttle, steering_angle = 0, 0
 
         # Update image to g_image_queue - used to run sign detection
         if not g_image_queue.full():
             g_image_queue.put(image)
-
-        # Show the result to a window
-        cv2.imshow("Result", draw)
-        cv2.waitKey(1)
-
 
         # Send back throttle and steering angle
         message = json.dumps(
@@ -142,10 +138,10 @@ if __name__ == '__main__':
     signs = manager.list()
 
     # Load traffic sign model
-    # traffic_sign_model = torch.load("/home/ngin/autonomous_car/models/traffic_sign_classifier.pth", weights_only=False)
-    # traffic_sign_model.to(device)
-    # traffic_sign_model.eval()
+    traffic_sign_model = torch.load("/home/ngin/autonomous_car/models/traffic_sign_classifier.pth", weights_only=False)
+    traffic_sign_model.to(device)
+    traffic_sign_model.eval()
     
-    # p = Process(target=process_traffic_sign_loop, args=(g_image_queue, traffic_sign_model, signs))
-    # p.start()
+    p = Process(target=process_traffic_sign_loop, args=(g_image_queue, traffic_sign_model, signs))
+    p.start()
     asyncio.run(main())
