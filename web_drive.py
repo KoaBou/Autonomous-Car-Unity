@@ -91,8 +91,9 @@ def process_traffic_sign_loop(g_image_queue, model, signs):
         cv2.putText(draw, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                 
         # Show the result to a window
-        cv2.imshow("Traffic signs", draw)
-        cv2.waitKey(1)
+        if config.SHOW_TRAFFIC_SIGN:
+            cv2.imshow("Traffic signs", draw)
+            cv2.waitKey(1)
 
 
 async def process_image(websocket, path, signs):
@@ -110,7 +111,7 @@ async def process_image(websocket, path, signs):
         # print(f"Current steering angle: {cur_steer_angle}")
 
         # Send back throttle and steering angle
-        car_controller.decision_control(image, signs=signs[:])
+        car_controller.drive(image, signs=signs[:], cur_angle=cur_steer_angle)
 
         throttle, steering_angle = car_controller.throttle, car_controller.steering_angle
         # throttle, steering_angle = 0, 0

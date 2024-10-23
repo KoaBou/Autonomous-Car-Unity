@@ -41,7 +41,7 @@ def get_boxes_from_mask(mask):
         h = stats[i, cv2.CC_STAT_HEIGHT]
         area = stats[i, cv2.CC_STAT_AREA]
         # Lọc các vật quá nhỏ, có thể là nhiễu
-        if w < 20 or h < 20:
+        if w < 25 or h < 25:
             continue
         # Lọc các vật quá lớn
         if w > 0.8 * im_width or h > 0.8 * im_height:

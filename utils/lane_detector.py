@@ -60,15 +60,13 @@ def find_left_right_points(image, draw=None):
     center = config.IMAGE_WIDTH // 2
 
     # Consider the position 70% from the top of the image
-    interested_lines_y = [int(config.LINEOFINTEREST_Y1*config.IMAGE_HEIGHT), int(config.LINEOFINTEREST_Y2*config.IMAGE_HEIGHT)]
+    interested_lines_y = [int(config.IMAGE_HEIGHT * line_y) for line_y in config.LINEOFINTEREST]
     
     if draw is not None:
         for interested_line_y in interested_lines_y:
             cv2.line(draw, (0, interested_line_y),
                     (config.IMAGE_WIDTH, interested_line_y), (0, 0, 255), 2)
             
-    interested_lines = []
-    
     for i, interested_line_y in enumerate(interested_lines_y):
         interested_line = image[interested_line_y, :]
 
@@ -100,6 +98,55 @@ def find_left_right_points(image, draw=None):
             res[i]['have_left'] = True
 
         res[i]['lane_line'] = res[i]['have_left'] + res[i]['have_right']
+        res[i]['center'] = (res[i]['left'] + res[i]['right']) // 2
+
+        # Draw two points on the image
+        if draw is not None:
+            draw = cv2.circle(draw, (res[i]['left'], interested_line_y), 7, (255, 255, 0), -1)
+            draw = cv2.circle(draw, (res[i]['right'], interested_line_y), 7, (0, 255, 0), -1)
+            draw = cv2.circle(draw, (res[i]['center'], interested_line_y), 7, (0, 0, 255), -1)
+
+    return res
+
+
+def find_left_right_points_seg(image, draw=None):
+    """Find left and right points of lane
+    """
+
+    points = {
+        "left": -1,
+        "right": -1,
+        "center": config.IMAGE_WIDTH // 2,
+    }
+
+    res = [points.copy() for _ in range(2)]
+
+    center = config.IMAGE_WIDTH // 2
+
+    # Consider the position 70% from the top of the image
+    interested_lines_y = [int(config.IMAGE_HEIGHT * line_y) for line_y in config.LINEOFINTEREST]
+    
+
+    if draw is not None:
+        for interested_line_y in interested_lines_y:
+            cv2.line(draw, (0, interested_line_y),
+                    (config.IMAGE_WIDTH, interested_line_y), (0, 0, 255), 2)
+            
+    for i, interested_line_y in enumerate(interested_lines_y):
+        interested_line = image[interested_line_y, :]
+
+        # Traverse the two sides, find the first non-zero value pixels, and
+        # consider them as the position of the left and right lines
+        for x in range(center, 0, -1):
+            if interested_line[x] == 0:
+                res[i]['left'] = x
+                break
+
+        for x in range(center + 1, config.IMAGE_WIDTH):
+            if interested_line[x] == 0:
+                res[i]['right'] = x
+                break
+
         res[i]['center'] = (res[i]['left'] + res[i]['right']) // 2
 
         # Draw two points on the image
