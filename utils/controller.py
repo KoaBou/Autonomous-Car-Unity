@@ -34,6 +34,7 @@ class carController():
 
         self.turningTime = 0
         self.state = 'PID'
+        self.discontinuous = True
 
 
     def drive(self, image, signs, cur_angle):
@@ -69,6 +70,8 @@ class carController():
 
         for i, line_seg in enumerate(lines_seg):
             self.lane['lines'][i]['lane_width'] = line_seg['right'] - line_seg['left']
+            self.lane['lines'][i]['left_seg'] = line_seg['left']
+            self.lane['lines'][i]['right_seg'] = line_seg['right']
 
         if lines[1]['lane_width'] > config.MAX_LANE_WIDTH:
             self.lane['type'] = 3
@@ -138,6 +141,8 @@ class carController():
 
 
     def calculate_control_signal(self):
+        if self.discontinuous and self.lane['lines'][0]['lane_line'] == 0:
+            self.lane['lines'][0]['center'] = (self.lane['lines'][0]['left_seg'] + self.lane['lines'][0]['right_seg'])//2              
         angle_diff = np.arctan((self.lane['lines'][0]['center'] - config.IMAGE_WIDTH//2)/ 
                             ((1-config.LINEOFINTEREST[0])*config.IMAGE_HEIGHT))
         angle_diff = -np.rad2deg(angle_diff)

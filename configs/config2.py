@@ -14,7 +14,7 @@ MAX_STEERING_ANGLE = 25.0
 MIN_STEERING_ANGLE = -25.0
 
 MAX_TURNING_TIME = 5
-MIN_TURNING_TIME = 1.5
+MIN_TURNING_TIME = 0.8
 STOP_TIME = 2
 GO_STRAIGHT_THROTTLE = .8
 TURNING_THROTTLE = 1.
@@ -33,7 +33,7 @@ TRAFFICSIGN_MODEL = "/home/ngin/autonomous_car/models/traffic_sign_classifier_le
 ###############################
 LINEOFINTEREST = [
     0.99,
-    0.88
+    0.8
 ]
 
 
