@@ -1,9 +1,9 @@
 ###############################
 ###### Car Controller #########
 ###############################
-KP = 0.2
+KP = 0.225
 KI = 0.01
-KD = 0.005
+KD = 0.0001
 
 MAX_THROTTLE = 0.8
 MIN_THROTTLE = 0.4
@@ -14,7 +14,7 @@ MAX_STEERING_ANGLE = 25.0
 MIN_STEERING_ANGLE = -25.0
 
 MAX_TURNING_TIME = 5
-MIN_TURNING_TIME = 0.8
+MIN_TURNING_TIME = 1
 STOP_TIME = 2
 GO_STRAIGHT_THROTTLE = .8
 TURNING_THROTTLE = 1.
@@ -40,8 +40,8 @@ LINEOFINTEREST = [
 ###############################
 ############ MAP ##############
 ###############################
-LANE_WIDTH = 105
-MAX_LANE_WIDTH = int(1.5 * LANE_WIDTH)
+LANE_WIDTH = 110
+MAX_LANE_WIDTH = int(1.2 * LANE_WIDTH)
 
 ###############################
 ######## SENSOR DATA ##########

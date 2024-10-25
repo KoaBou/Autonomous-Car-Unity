@@ -102,9 +102,9 @@ def find_left_right_points(image, draw=None):
 
         # Draw two points on the image
         if draw is not None:
-            draw = cv2.circle(draw, (res[i]['left'], interested_line_y), 7, (255, 255, 0), -1)
-            draw = cv2.circle(draw, (res[i]['right'], interested_line_y), 7, (0, 255, 0), -1)
-            draw = cv2.circle(draw, (res[i]['center'], interested_line_y), 7, (0, 0, 255), -1)
+            draw = cv2.circle(draw, (res[i]['left'], interested_line_y), 7, (0, 0, 0), -1)
+            draw = cv2.circle(draw, (res[i]['right'], interested_line_y), 7, (0, 0, 0), -1)
+            draw = cv2.circle(draw, (res[i]['center'], interested_line_y), 7, (0, 0, 0), -1)
 
     return res
 
@@ -117,6 +117,9 @@ def find_left_right_points_seg(image, draw=None):
         "left": -1,
         "right": -1,
         "center": config.IMAGE_WIDTH // 2,
+        "have_left": False,
+        "have_right": False,
+        "lane_line": 0
     }
 
     res = [points.copy() for _ in range(2)]
@@ -147,18 +150,21 @@ def find_left_right_points_seg(image, draw=None):
                 res[i]['right'] = x
                 break
 
+        if res[i]['center'] - res[i]['left'] <= config.MAX_LANE_WIDTH//2:
+            res[i]['have_left'] = True
+
+        if res[i]['right'] - res[i]['center'] <= config.MAX_LANE_WIDTH//2:
+            res[i]['have_right'] = True
+            
+        res[i]['lane_line'] = res[i]['have_left'] + res[i]['have_right']
         res[i]['center'] = (res[i]['left'] + res[i]['right']) // 2
+
 
         # Draw two points on the image
         if draw is not None:
-            if res[i]['left'] != -1:
-                draw = cv2.circle(
-                    draw, (res[i]['left'], interested_line_y), 7, (255, 255, 0), -1)
-            if res[i]['right'] != -1:
-                draw = cv2.circle(
-                    draw, (res[i]['right'], interested_line_y), 7, (0, 255, 0), -1)
-            draw = cv2.circle(
-                draw, (res[i]['center'], interested_line_y), 7, (0, 0, 255), -1)
+            draw = cv2.circle(draw, (res[i]['left'], interested_line_y), 7, (255, 255, 255), -1)
+            draw = cv2.circle(draw, (res[i]['right'], interested_line_y), 7, (255, 255, 255), -1)
+            draw = cv2.circle(draw, (res[i]['center'], interested_line_y), 7, (255, 255, 255), -1)
 
     return res
 

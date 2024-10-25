@@ -43,12 +43,13 @@ class carController():
         self.cur_angle = float(cur_angle)
         self.image_process()
         self.decision_state()
-        self.calculate_control_signal()
+        self.decision_control()
 
         print("\nState: ", self.state, 
               "\nTuring time remains: ", self.turningTime - (time.time() - self.lastSignTime), 
-              "\nLane type: ", self.lane['type'], 
-              "Steering angle: ", self.steering_angle,
+              f"\n Have right: {self.lane['lines'][0]['have_right']}, Have left: {self.lane['lines'][0]['have_left']}", 
+              f"\n Have right seg: {self.lane['lines'][0]['have_right_seg']}, Have left seg: {self.lane['lines'][0]['have_left_seg']}",
+              "\n Steering angle: ", self.steering_angle,
               "Throttle: ", self.throttle)
 
     
@@ -61,7 +62,7 @@ class carController():
         # img_birdview = birdview_transform(img_lines)
         line_img = find_lane_lines(self.image)
         line_birdview = birdview_transform(line_img)
-        lines = find_left_right_points(line_birdview)
+        lines = find_left_right_points(line_birdview, draw=draw)
         self.lane['lines'] = lines
 
         img_lines_seg = lane_segmentation(self.image)
@@ -72,6 +73,9 @@ class carController():
             self.lane['lines'][i]['lane_width'] = line_seg['right'] - line_seg['left']
             self.lane['lines'][i]['left_seg'] = line_seg['left']
             self.lane['lines'][i]['right_seg'] = line_seg['right']
+            self.lane['lines'][i]['have_left_seg'] = line_seg['have_left']
+            self.lane['lines'][i]['have_right_seg'] = line_seg['have_right']
+            self.lane['lines'][i]['lane_line_seg'] = line_seg['lane_line']
 
         if lines[1]['lane_width'] > config.MAX_LANE_WIDTH:
             self.lane['type'] = 3
@@ -88,8 +92,8 @@ class carController():
 
     def decision_state(self):
         # Set detected signs
-        if self.state=='PID' and len(self.signs) >= 1 and abs(self.steering_angle)<0.2:
-        # if self.state=='PID' and len(self.signs) >= 1:
+        # if self.state=='PID' and len(self.signs) >= 1 and abs(self.steering_angle)<0.2:
+        if self.state=='PID' and len(self.signs) >= 1:
             if 'left' in self.signs:
                 self.lastSignDetection = 'left'
             elif 'right' in self.signs:
@@ -139,8 +143,51 @@ class carController():
                 print("\nEarly reset sign detection")
                 self.resetState()
 
+    def decision_control(self):
+        if self.state == 'WAITING':
+            self.calculate_control_signal(throttle=config.MIN_THROTTLE)
+            return
+        elif self.state == 'NO_LEFT':
+            if not self.lane['lines'][1]['have_right'] and not self.lane['lines'][1]['have_right_seg']:
+                print("\n Found right, turn right!")
+                self.turnRight()
+            # elif not self.lane['lines'][1]['have_left'] and \
+            #     not self.lane['lines'][1]['have_left_seg']:
+            #     self.state = 'STRAIGHT'
+            else:
+                # self.lane['lines'][0]['left'] = config.IMAGE_WIDTH//2 - config.LANE_WIDTH//2
+                self.lane['lines'][0]['center'] = (self.lane['lines'][0]['right']*2 - config.LANE_WIDTH)//2
+        elif self.state == 'NO_RIGHT':
+            if not self.lane['lines'][1]['have_left'] and not self.lane['lines'][1]['have_left_seg']:
+                print("\n Found left, turn left!")
+                self.turnLeft()
+            # elif not self.lane['lines'][1]['have_right'] and not self.lane['lines'][1]['have_right_seg']:
+            #     print("\n Not found left, go straight!")
+            #     print(f"\n Have right: {self.lane['lines'][1]['have_right']}, Have left: {self.lane['lines'][1]['have_left']}")
+            #     print(f"\n Have right seg: {self.lane['lines'][1]['have_right_seg']}, Have left seg: {self.lane['lines'][1]['have_left_seg']}")
+            #     self.state = 'STRAIGHT'
+            else:
+                # self.lane['lines'][0]['right'] = config.IMAGE_WIDTH//2 + config.LANE_WIDTH//2
+                self.lane['lines'][0]['center'] = (self.lane['lines'][0]['left']*2 + config.LANE_WIDTH)//2
+        elif self.state == 'STRAIGHT':
+            print("\nGo straight")
+            self.calculate_control_signal(steering_angle=0, throttle=config.GO_STRAIGHT_THROTTLE)
+            return
+        elif self.state == 'LEFT' and self.lane['lines'][0]['lane_line'] != 2 and \
+            self.lane['lines'][0]['lane_line_seg'] != 2:
+            print("\n\n\nTurning left\n\n\n")
+            self.calculate_control_signal(throttle=config.TURNING_THROTTLE, steering_angle=config.TURN_LEFT_ANGLE)
+            return
+        elif self.state == 'RIGHT' and self.lane['lines'][0]['lane_line'] != 2 and \
+            self.lane['lines'][0]['lane_line_seg'] != 2:
+            print("\n\n\nTurning right\n\n\n")
+            self.calculate_control_signal(throttle=config.TURNING_THROTTLE, steering_angle=config.TURN_RIGHT_ANGLE)
+            return
 
-    def calculate_control_signal(self):
+        self.calculate_control_signal()
+
+
+    def calculate_control_signal(self, steering_angle=None, throttle=None):
         if self.discontinuous and self.lane['lines'][0]['lane_line'] == 0:
             self.lane['lines'][0]['center'] = (self.lane['lines'][0]['left_seg'] + self.lane['lines'][0]['right_seg'])//2              
         angle_diff = np.arctan((self.lane['lines'][0]['center'] - config.IMAGE_WIDTH//2)/ 
@@ -149,31 +196,19 @@ class carController():
         self.angle_diff = angle_diff
         print("\nAngle diff: ", angle_diff)
 
-        # self.steering_angle = self.controller(center_diff)
-        self.steering_angle = self.controller(angle_diff) / config.MAX_STEERING_ANGLE
-        self.throttle = (abs(self.steering_angle)*(config.MAX_THROTTLE-config.THROTTLE)) + config.THROTTLE
-        # self.throttle = config.THROTTLE
-        if self.state == 'WAITING':
-            self.throttle = config.MIN_THROTTLE
-        elif self.state == 'NO_LEFT':
-            if not self.lane['lines'][1]['have_right']:
-                self.turnRight()
-            elif not self.lane['lines'][1]['have_left']:
-                self.state = 'STRAIGHT'
-        elif self.state == 'NO_RIGHT':
-            if not self.lane['lines'][1]['have_right']:
-                self.turnLeft()
-            elif not self.lane['lines'][1]['have_left']:
-                self.state = 'STRAIGHT'
-        elif self.state == 'STRAIGHT':
-            self.steering_angle = 0
-            self.throttle = config.GO_STRAIGHT_THROTTLE
-        elif self.state == 'LEFT' and self.lane['lines'][0]['lane_line'] != 2:
-            self.steering_angle = config.TURN_LEFT_ANGLE
-            self.throttle = config.TURNING_THROTTLE
-        elif self.state == 'RIGHT' and self.lane['lines'][0]['lane_line'] != 2:
-            self.steering_angle = config.TURN_RIGHT_ANGLE
-            self.throttle = config.TURNING_THROTTLE
+        if steering_angle is not None:
+            self.steering_angle = steering_angle
+        else:
+            # self.steering_angle = self.controller(center_diff)
+            self.steering_angle = self.controller(angle_diff) / config.MAX_STEERING_ANGLE
+        
+        if throttle is not None:
+            self.throttle = throttle
+        else:
+            # self.throttle = (abs(self.steering_angle)*(config.MAX_THROTTLE-config.THROTTLE)) + config.THROTTLE
+            self.throttle = config.THROTTLE
+ 
+
 
 
 
