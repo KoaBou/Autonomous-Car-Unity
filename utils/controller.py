@@ -31,10 +31,12 @@ class carController():
         self.lastSignDetection = None
         self.last_sign = None
         self.lastSignTime = 0
+        self.startTurningTime = 0
 
         self.turningTime = 0
+        self.waitTime = 0
         self.state = 'PID'
-        self.discontinuous = True
+        self.discontinuous = config.DISCONTINUOUS_LANE
 
 
     def drive(self, image, signs, cur_angle):
@@ -107,7 +109,8 @@ class carController():
 
             print("\nDetected sign: ", self.lastSignDetection)
 
-            self.turningTime = config.MAX_TURNING_TIME*(1.5 if self.lastSignDetection in ['no_left', 'no_right'] else 1)
+            self.waitTime = config.WAIT_TIME
+            # self.turningTime = config.MAX_TURNING_TIME*(1.5 if self.lastSignDetection in ['no_left', 'no_right'] else 1)
             self.lastSignTime = time.time()
             self.waitTurn()
 
@@ -120,6 +123,7 @@ class carController():
         if self.state=='WAITING':
             if self.lastSignDetection == 'straight' and self.lane['lines'][1]['lane_line']!=2:
                 if abs(self.angle_diff) < 1:
+                    self.startTurningTime = time.time()
                     self.state = 'STRAIGHT'
                     return
             elif self.lastSignDetection == 'no_left':
@@ -131,15 +135,18 @@ class carController():
             elif self.lastSignDetection == 'right':
                 self.turnRight()  
    
-
+        if self.startTurningTime==0 and (time.time() - self.lastSignTime) > config.WAIT_TIME:
+            print("\nOut of waiting time, reset sign detection!")
+            self.resetState()
+        
         # Reset the sign detection
-        if self.turningTime!=0: 
+        if self.startTurningTime!=0: 
             ## Reset after the turning time
-            if (time.time() - self.lastSignTime) > self.turningTime:
-                print("\nReset sign detection")
+            if (time.time() - self.startTurningTime) > config.MAX_TURNING_TIME:
+                print("\Reach the max turning time, reset sign detection")
                 self.resetState()
             ## Early reset when detected two lane lines
-            if self.lane['lines'][0]['lane_line'] == 2 and (time.time() - self.lastSignTime) > config.MIN_TURNING_TIME:
+            if self.lane['lines'][0]['lane_line'] == 2 and (time.time() - self.startTurningTime) > config.MIN_TURNING_TIME:
                 print("\nEarly reset sign detection")
                 self.resetState()
 
@@ -156,6 +163,8 @@ class carController():
             #     self.state = 'STRAIGHT'
             else:
                 # self.lane['lines'][0]['left'] = config.IMAGE_WIDTH//2 - config.LANE_WIDTH//2
+                if not self.lane['lines'][1]['have_left'] and not self.lane['lines'][1]['have_left_seg']:
+                    self.startTurningTime = time.time()
                 self.lane['lines'][0]['center'] = (self.lane['lines'][0]['right']*2 - config.LANE_WIDTH)//2
         elif self.state == 'NO_RIGHT':
             if not self.lane['lines'][1]['have_left'] and not self.lane['lines'][1]['have_left_seg']:
@@ -168,6 +177,8 @@ class carController():
             #     self.state = 'STRAIGHT'
             else:
                 # self.lane['lines'][0]['right'] = config.IMAGE_WIDTH//2 + config.LANE_WIDTH//2
+                if not self.lane['lines'][1]['have_right'] and not self.lane['lines'][1]['have_right_seg']:
+                    self.startTurningTime = time.time()
                 self.lane['lines'][0]['center'] = (self.lane['lines'][0]['left']*2 + config.LANE_WIDTH)//2
         elif self.state == 'STRAIGHT':
             print("\nGo straight")
@@ -175,11 +186,15 @@ class carController():
             return
         elif self.state == 'LEFT' and self.lane['lines'][0]['lane_line'] != 2 and \
             self.lane['lines'][0]['lane_line_seg'] != 2:
+            if self.startTurningTime == 0:
+                self.startTurningTime = time.time()
             print("\n\n\nTurning left\n\n\n")
             self.calculate_control_signal(throttle=config.TURNING_THROTTLE, steering_angle=config.TURN_LEFT_ANGLE)
             return
         elif self.state == 'RIGHT' and self.lane['lines'][0]['lane_line'] != 2 and \
             self.lane['lines'][0]['lane_line_seg'] != 2:
+            if self.startTurningTime == 0:
+                self.startTurningTime = time.time()
             print("\n\n\nTurning right\n\n\n")
             self.calculate_control_signal(throttle=config.TURNING_THROTTLE, steering_angle=config.TURN_RIGHT_ANGLE)
             return
@@ -237,6 +252,8 @@ class carController():
         self.lastSignDetection = None
         self.turningTime = 0
         self.lastSignTime = 0       
+        self.waitTime = 0
+        self.startTurningTime = 0
 
 
 
