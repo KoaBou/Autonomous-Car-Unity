@@ -9,6 +9,7 @@ Using simple CV algorithms to develop an autonomous system, Unity used for simul
 - [Installation](#installation)
 - [Usage](#usage)
 - [Contributing](#contributing)
+- [Demo](#demo)
 - [License](#license)
 
 ## Introduction
@@ -53,6 +54,14 @@ Contributions are welcome! Please follow these steps:
 4. Commit your changes (`git commit -am 'Add new feature'`).
 5. Push to the branch (`git push origin feature-branch`).
 6. Open a pull request.
+
+## Demo Video
+
+Watch the demo video below:
+
+[![Autonomous Car Unity Demo](https://img.youtube.com/vi/EO4QMFLjuzk/0.jpg)](https://youtu.be/EO4QMFLjuzk)
+
+
 
 ## License
 
