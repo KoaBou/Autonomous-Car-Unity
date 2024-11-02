@@ -9,7 +9,7 @@ Using simple CV algorithms to develop an autonomous system, Unity used for simul
 - [Installation](#installation)
 - [Usage](#usage)
 - [Contributing](#contributing)
-- [Demo](#demo)
+- [Demo](#demo-video)
 - [License](#license)
 
 ## Introduction
